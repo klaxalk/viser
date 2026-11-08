@@ -46,6 +46,8 @@ import {
 } from "./GaussianSplatsHelpers";
 import { ViewerContext } from "../ViewerContext";
 import { SPLAT_RENDER_ORDER } from "../renderOrders";
+import { mergeSplats, type MergedSplats } from "../mf/splatMerge";
+import { mfShTexture } from "../mf/splatUniforms";
 
 /**Provider for creating splat rendering context.*/
 export function SplatRenderContext({
@@ -156,12 +158,17 @@ function SplatRendererImpl() {
   // Refs to persist resources across re-renders.
   const sortWorkerRef = React.useRef<Worker | null>(null);
   const meshPropsRef = React.useRef<GaussianMeshProps | null>(null);
-  const prevMergedRef = React.useRef<{
-    gaussianBuffer: Uint32Array;
-    numGaussians: number;
-    numGroups: number;
-    groupIndices: Uint32Array;
-  } | null>(null);
+  const prevMergedRef = React.useRef<MergedSplats | null>(null);
+  // ModelForge: splat updates without a gap (changed level-of-detail cells flashed to the background, then
+  // flickered): viser applied a changed buffer at once, with a draw order the sort worker had not computed for it
+  // yet (a new size: empty, nothing drawn; the same size: the old order on the new layout). Each buffer sent to the
+  // worker has a generation, echoed in its sorts; an update with the same group count is only staged (the old buffer
+  // is drawn, in its own order) until the worker's first sort of it arrives, then buffer and order go in together.
+  const genRef = React.useRef(0); // the newest generation sent
+  const shownGenRef = React.useRef(0); // the generation drawn
+  const pendingRef = React.useRef<{ gen: number; apply: () => void } | null>(
+    null,
+  );
   const isFirstRenderRef = React.useRef(true);
   // Raw (pre-mask) transform baseline for per-frame change detection.
   // Declared HERE, above the buffer-update block, so a size-changing update
@@ -180,7 +187,7 @@ function SplatRendererImpl() {
   // Memoized on groupBufferFromId reference -- the store returns the same
   // reference when state hasn't changed, so this avoids re-merging every render.
   const merged = React.useMemo(
-    () => mergeGaussianGroups(groupBufferFromId),
+    () => mergeSplats(groupBufferFromId),
     [groupBufferFromId],
   );
 
@@ -209,6 +216,7 @@ function SplatRendererImpl() {
       merged.gaussianBuffer,
       merged.numGroups,
       maxTextureSize,
+      merged.sh,
     );
 
     // Show splats immediately with identity sort order. This makes splats
@@ -229,6 +237,14 @@ function SplatRendererImpl() {
     sortWorkerRef.current = new SplatSortWorker();
     sortWorkerRef.current.onmessage = (e) => {
       const sortedIndices = e.data.sortedIndices as Uint32Array;
+      const gen = (e.data.gen as number | undefined) ?? 0;
+      const pending = pendingRef.current;
+      if (pending && gen === pending.gen) {
+        pendingRef.current = null;
+        shownGenRef.current = gen;
+        pending.apply();
+      }
+      if (gen !== shownGenRef.current) return;
       if (meshPropsRef.current) {
         // Handle case where sorted indices might be from a previous buffer size.
         if (sortedIndices.length === meshPropsRef.current.numGaussians) {
@@ -247,8 +263,68 @@ function SplatRendererImpl() {
 
     prevMergedRef.current = merged;
     isFirstRenderRef.current = false;
+  } else if (
+    bufferChanged &&
+    meshPropsRef.current &&
+    merged.numGroups === meshPropsRef.current.numGroups
+  ) {
+    // ModelForge: staged until sorted (see genRef).
+    const gen = ++genRef.current;
+    const staged = merged;
+    pendingRef.current = {
+      gen,
+      apply: () => {
+        const props = meshPropsRef.current;
+        if (props === null) return;
+        if (staged.numGaussians !== props.numGaussians) {
+          meshPropsRef.current = createGaussianMeshProps(
+            staged.gaussianBuffer,
+            staged.numGroups,
+            maxTextureSize,
+            staged.sh,
+          );
+          // The old mesh may still be drawn this frame.
+          setTimeout(() => {
+            props.textureBuffer.dispose();
+            props.geometry.dispose();
+            props.material.dispose();
+            props.textureT_camera_groups.dispose();
+          }, 500);
+          prevRowMajorT_camera_groupsRef.current = new Float32Array(0);
+          const fresh = meshPropsRef.current;
+          fresh.material.uniforms.transitionInState.value = 1.0;
+          fresh.material.uniforms.numGaussians.value = staged.numGaussians;
+          fresh.textureBuffer.needsUpdate = true;
+          splatContext.meshPropsRef.current = fresh;
+          forceUpdate();
+        } else {
+          const textureData = props.textureBuffer.image.data as Uint32Array;
+          textureData.fill(0);
+          textureData.set(staged.gaussianBuffer);
+          props.textureBuffer.needsUpdate = true;
+          mfShTexture(
+            props.material,
+            staged.sh,
+            staged.numGaussians,
+            maxTextureSize,
+          );
+        }
+        viewer.mutable.current.requestRender();
+      },
+    };
+    postToWorker({
+      updateBuffer: merged.gaussianBuffer,
+      updateGroupIndices: merged.groupIndices,
+      updateNumGroups: merged.numGroups,
+      gen,
+    });
+    prevMergedRef.current = merged;
   } else if (bufferChanged && meshPropsRef.current) {
-    // Handle buffer updates.
+    // Handle buffer updates. ModelForge: another group count, shown at once
+    // as a new generation (drops a staged one).
+    genRef.current += 1;
+    shownGenRef.current = genRef.current;
+    pendingRef.current = null;
     if (sizeChanged) {
       // Size changed - need to recreate mesh props.
       const oldProps = meshPropsRef.current;
@@ -258,6 +334,7 @@ function SplatRendererImpl() {
         merged.gaussianBuffer,
         merged.numGroups,
         maxTextureSize,
+        merged.sh,
       );
 
       // Dispose old resources.
@@ -281,6 +358,7 @@ function SplatRendererImpl() {
         updateBuffer: merged.gaussianBuffer,
         updateGroupIndices: merged.groupIndices,
         updateNumGroups: merged.numGroups,
+        gen: genRef.current,
       });
 
       // Skip fade-in animation on updates, set numGaussians immediately.
@@ -298,6 +376,12 @@ function SplatRendererImpl() {
       textureData.fill(0);
       textureData.set(merged.gaussianBuffer);
       meshPropsRef.current.textureBuffer.needsUpdate = true;
+      mfShTexture(
+        meshPropsRef.current.material,
+        merged.sh,
+        merged.numGaussians,
+        maxTextureSize,
+      );
 
       // Update worker with new buffer. numGroups lets the worker detect a
       // group-count change and drop a now-wrong-sized transform array
@@ -306,6 +390,7 @@ function SplatRendererImpl() {
         updateBuffer: merged.gaussianBuffer,
         updateGroupIndices: merged.groupIndices,
         updateNumGroups: merged.numGroups,
+        gen: genRef.current,
       });
 
       // Skip fade-in animation on updates.
@@ -625,45 +710,4 @@ function SplatRendererImpl() {
       renderOrder={SPLAT_RENDER_ORDER}
     />
   );
-}
-
-/**Consolidate groups of Gaussians into a single buffer, to make it possible
- * for them to be sorted globally.*/
-function mergeGaussianGroups(groupBufferFromName: {
-  [name: string]: Uint32Array;
-}) {
-  // Create geometry. Each Gaussian will be rendered as a quad.
-  let totalBufferLength = 0;
-  for (const buffer of Object.values(groupBufferFromName)) {
-    totalBufferLength += buffer.length;
-  }
-  const numGaussians = totalBufferLength / 8;
-  const gaussianBuffer = new Uint32Array(totalBufferLength);
-  const groupIndices = new Uint32Array(numGaussians);
-
-  let offset = 0;
-  for (const [groupIndex, groupBuffer] of Object.values(
-    groupBufferFromName,
-  ).entries()) {
-    groupIndices.fill(
-      groupIndex,
-      offset / 8,
-      (offset + groupBuffer.length) / 8,
-    );
-    gaussianBuffer.set(groupBuffer, offset);
-
-    // Each Gaussian is allocated
-    // - 12 bytes for center x, y, z (float32)
-    // - 4 bytes for group index (uint32); we're filling this in now
-    //
-    // - 12 bytes for covariance (6 terms, float16)
-    // - 4 bytes for RGBA (uint8)
-    for (let i = 0; i < groupBuffer.length; i += 8) {
-      gaussianBuffer[offset + i + 3] = groupIndex;
-    }
-    offset += groupBuffer.length;
-  }
-
-  const numGroups = Object.keys(groupBufferFromName).length;
-  return { numGaussians, gaussianBuffer, numGroups, groupIndices };
 }

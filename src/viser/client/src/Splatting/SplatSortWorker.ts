@@ -14,6 +14,8 @@ export type SorterWorkerIncoming =
       updateBuffer: Uint32Array;
       updateGroupIndices: Uint32Array;
       updateNumGroups: number;
+      // ModelForge: the buffer's generation, echoed in every sort result (GaussianSplats.tsx stages updates).
+      gen?: number;
     }
   | {
       setTz_camera_groups: Float32Array;
@@ -24,6 +26,8 @@ export type SorterWorkerIncoming =
   let sorter: any = null;
   let Tz_camera_groups: Float32Array | null = null;
   let sortRunning = false;
+  // ModelForge: the generation of the buffer the sorter holds.
+  let gen = 0;
   // Set when updateBuffer swaps the sorter's contents; cleared when a sort
   // actually begins (that sort reads the new buffer). Without it, an
   // updateBuffer arriving while a sort runs is dropped by the throttle, and
@@ -50,7 +54,9 @@ export type SorterWorkerIncoming =
     ).slice();
 
     // @ts-ignore
-    self.postMessage({ sortedIndices: sortedIndices }, [sortedIndices.buffer]);
+    self.postMessage({ sortedIndices: sortedIndices, gen: gen }, [
+      sortedIndices.buffer,
+    ]);
 
     setTimeout(() => {
       sortRunning = false;
@@ -83,6 +89,7 @@ export type SorterWorkerIncoming =
       // Update existing sorter with new buffer data.
       if (sorter !== null) {
         sorter.setBuffer(data.updateBuffer, data.updateGroupIndices);
+        gen = data.gen ?? 0;
         // Mark the swapped buffer as unsorted so the post-sort retry re-sorts
         // even when the view hasn't changed (throttledSort clears this when a
         // sort starts).

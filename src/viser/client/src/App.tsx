@@ -39,6 +39,7 @@ import { KeyModifier, hasCmdCtrl, keyModifierFromEvent } from "./dragUtils";
 import { shallowArrayEqual } from "./utils/shallowArrayEqual";
 import { isFormElement } from "./utils/isFormElement";
 import { ndcFromPointerXy, opencvXyFromPointerXy } from "./utils/pointerCoords";
+import { setMfViewer } from "./mf/viewer";
 import { ViewerContext, ViewerContextContents } from "./ViewerContext";
 import ControlPanel from "./ControlPanel/ControlPanel";
 import {
@@ -298,6 +299,8 @@ function ViewerRoot() {
     mutable,
     interaction,
   };
+  // ModelForge: the page-level code (src/mf/) reads the GUI stores and sends messages through it.
+  setMfViewer(viewer);
 
   return (
     <ViewerContext.Provider value={viewer}>

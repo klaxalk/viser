@@ -8,6 +8,41 @@ import svgrPlugin from "vite-plugin-svgr";
 import browserslistToEsbuild from "browserslist-to-esbuild";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import { compressHtml } from "./vite-plugin-compress-html.mts";
+import { createHash } from "node:crypto";
+import { readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+
+// ModelForge: the page's code version, a hash of src/ + index.html. The page knows its own (__MF_PAGE_VERSION__,
+// src/mf/version.ts) and the GUI serves build/mf_version.txt (gui/app.py `_page_version`): a tab left open across a
+// GUI restart that changed the client asks to be reloaded.
+function sourceHash(): string {
+  const root = fileURLToPath(new URL(".", import.meta.url));
+  const h = createHash("sha1");
+  const walk = (dir: string) => {
+    for (const e of readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else {
+        h.update(p.slice(root.length));
+        h.update(readFileSync(p));
+      }
+    }
+  };
+  walk(join(root, "src"));
+  h.update(readFileSync(join(root, "index.html")));
+  return h.digest("hex").slice(0, 12);
+}
+const MF_PAGE_VERSION = sourceHash();
+function mfVersionFile(): Plugin {
+  return {
+    name: "mf-version-file",
+    closeBundle() {
+      const out = fileURLToPath(new URL("./build", import.meta.url));
+      mkdirSync(out, { recursive: true });
+      writeFileSync(join(out, "mf_version.txt"), MF_PAGE_VERSION + "\n");
+    },
+  };
+}
 
 // R3F's <Canvas> calls `extend(THREE)` with the entire three namespace,
 // which retains every three export and defeats tree-shaking (~35 KB of the
@@ -36,6 +71,7 @@ export default defineConfig(({ command }) => {
   const isDev = command === "serve";
 
   return {
+    define: { __MF_PAGE_VERSION__: JSON.stringify(MF_PAGE_VERSION) },
     plugins: [
       react(),
       viteTsconfigPaths(),
@@ -43,7 +79,7 @@ export default defineConfig(({ command }) => {
       vanillaExtractPlugin(),
       // Single-file bundling and compression only for production builds.
       ...(!isDev
-        ? [fiberNoAutoExtend(), viteSingleFile(), compressHtml()]
+        ? [fiberNoAutoExtend(), viteSingleFile(), compressHtml(), mfVersionFile()]
         : []),
     ],
     server: {

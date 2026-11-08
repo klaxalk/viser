@@ -1,4 +1,5 @@
 import React from "react";
+import { mfUnlitMaterial } from "../mf/lights";
 import * as THREE from "three";
 import { GlbMessage } from "../WebsocketMessages";
 import { useGlbLoader } from "./GlbLoaderUtils";
@@ -32,6 +33,9 @@ export const SingleGlbAsset = React.forwardRef<
         obj.castShadow = message.props.cast_shadow;
         // Only set receiveShadow if receive_shadow is a boolean true.
         obj.receiveShadow = message.props.receive_shadow === true;
+        // ModelForge: unlit materials (KHR_materials_unlit) without tone mapping, at Edit → Lights → Preview's
+        // brightness (src/mf/lights.ts; View → Surroundings).
+        if (obj.material instanceof THREE.MeshBasicMaterial) mfUnlitMaterial(obj.material);
       }
     });
   }, [gltf, message.props.cast_shadow, message.props.receive_shadow]);

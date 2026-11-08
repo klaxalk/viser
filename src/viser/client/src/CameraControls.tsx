@@ -13,6 +13,8 @@ import * as THREE from "three";
 import { computeT_threeworld_world } from "./WorldTransformUtils";
 import { useThrottledMessageSender } from "./WebsocketUtils";
 import { isFormElement } from "./utils/isFormElement";
+import { mfControls } from "./mf/el";
+import { mfFly } from "./mf/fly";
 
 // Rotation from the three.js camera convention to the OpenCV one. Constant, so
 // it lives at module scope instead of being rebuilt every render.
@@ -26,8 +28,9 @@ const CAMERA_MOVEMENT_KEYS = new Set([
   "KeyA",
   "KeyS",
   "KeyD",
-  "KeyQ",
-  "KeyE",
+  // ModelForge: F / R move down / up (viser: Q / E; the user asked).
+  "KeyF",
+  "KeyR",
   "ArrowUp",
   "ArrowDown",
   "ArrowLeft",
@@ -716,24 +719,49 @@ export function SynchronizedCameraControls() {
     };
   }, []);
 
-  // Apply held-key camera movement each frame. Rates: linear 2.0/s, rotation
-  // 50 deg/s (`delta` is in seconds).
+  // Apply held-key camera movement each frame. Rates: linear = ModelForge's
+  // View → Move speed (#mf-move-speed data-speed, m/s; 5 until the page has
+  // it; viser's fixed 2.0/s), rotation 50 deg/s (`delta` is in seconds).
+  // ModelForge also runs View → Fly (the page flies the path, mf/fly.ts) and
+  // View → Orbit (data-orbit deg/s about the look-at point, as the arrow keys
+  // turn, so the wheel and drags keep working while it orbits) here.
+  const moveSpeedRef = useRef(5.0);
   useFrame((_, delta) => {
     const cameraControls = viewerMutable.cameraControl;
     const held = heldKeysRef.current;
-    if (cameraControls === null || held.size === 0) return;
+    const controls = mfControls();
+    const orbit = +(controls?.orbit || 0);
+    if (
+      cameraControls !== null &&
+      cameraControls.enabled &&
+      mfFly(
+        cameraControls,
+        () => computeT_threeworld_world(viewer),
+        held.size > 0,
+        viewerMutable.requestRender,
+      )
+    )
+      return;
+    if (cameraControls === null || (held.size === 0 && !orbit)) return;
     // Respect camera locks: when a lease (or a gizmo drag) has disabled the
     // controls, keyboard movement must not bypass it. The library's
     // programmatic truck/forward/rotate ignore `enabled`, so guard here.
     if (!cameraControls.enabled) return;
-    const linear = 2.0 * delta;
+    if (orbit)
+      cameraControls.rotate(
+        orbit * THREE.MathUtils.DEG2RAD * Math.min(delta, 0.1),
+        0,
+        true,
+      );
+    moveSpeedRef.current = +(controls?.speed || moveSpeedRef.current);
+    const linear = moveSpeedRef.current * delta;
     const angular = 50.0 * THREE.MathUtils.DEG2RAD * delta;
     if (held.has("KeyA")) cameraControls.truck(-linear, 0, false);
     if (held.has("KeyD")) cameraControls.truck(linear, 0, false);
     if (held.has("KeyW")) cameraControls.forward(linear, false);
     if (held.has("KeyS")) cameraControls.forward(-linear, false);
-    if (held.has("KeyQ")) cameraControls.elevate(-linear, false);
-    if (held.has("KeyE")) cameraControls.elevate(linear, false);
+    if (held.has("KeyF")) cameraControls.elevate(-linear, false);
+    if (held.has("KeyR")) cameraControls.elevate(linear, false);
     if (held.has("ArrowLeft")) cameraControls.rotate(-angular, 0, true);
     if (held.has("ArrowRight")) cameraControls.rotate(angular, 0, true);
     if (held.has("ArrowUp")) cameraControls.rotate(0, -angular, true);

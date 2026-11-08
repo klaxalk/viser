@@ -1,5 +1,6 @@
 import { notifications } from "@mantine/notifications";
 
+import { mfUploadAck } from "./mf/upload";
 import React, { useContext } from "react";
 import * as THREE from "three";
 import { TextureLoader } from "three";
@@ -904,6 +905,8 @@ function useMessageHandler() {
         return;
       }
       case "FileTransferPartAck": {
+        // ModelForge: acknowledgements of the streaming uploads (src/mf/upload.ts).
+        if (mfUploadAck(message)) return;
         updateUploadState({
           componentId: message.source_component_uuid!,
           uploadedBytes: message.transferred_bytes,

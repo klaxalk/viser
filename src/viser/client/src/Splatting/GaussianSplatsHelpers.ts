@@ -4,6 +4,9 @@ import { createStore } from "../store";
 import { Object3D } from "three";
 import { useThree } from "@react-three/fiber";
 import { shaderMaterial } from "@react-three/drei";
+import { MF_FUNCTIONS, MF_UNIFORMS } from "../mf/splatShaders";
+import { mfSplatMaterial } from "../mf/splatUniforms";
+import type { MergedSh } from "../mf/splatMerge";
 
 const GaussianSplatMaterial = /* @__PURE__ */ shaderMaterial(
   {
@@ -46,10 +49,15 @@ const GaussianSplatMaterial = /* @__PURE__ */ shaderMaterial(
   // Fade in state between [0, 1].
   uniform float transitionInState;
 
+  // ModelForge: view-dependent colour, lighting, glow and wind (src/mf/splatShaders.ts).
+  ${MF_UNIFORMS}
+
   out vec4 vRgba;
   out vec2 vPosition;
 
   #include <fog_pars_vertex>
+
+  ${MF_FUNCTIONS}
 
   // Function to fetch and construct the i-th transform matrix using texelFetch
   mat4 getGroupTransform(uint i) {
@@ -77,13 +85,19 @@ const GaussianSplatMaterial = /* @__PURE__ */ shaderMaterial(
 
     // Fetch from textures.
     uvec4 floatBufferData = texelFetch(textureBuffer, texPos0, 0);
-    mat4 T_camera_group = getGroupTransform(floatBufferData.w);
+    // ModelForge: the group index is the lower half of the reserved word; the upper half is the Gaussian's glow or
+    // wind code (src/mf/splatMerge.ts).
+    mat4 T_camera_group = getGroupTransform(floatBufferData.w & 65535u);
+    uint mfCode = floatBufferData.w >> 16u;
 
     // Any early return will discard the fragment.
     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
 
     // Get center wrt camera. modelViewMatrix is T_cam_world.
     vec3 center = uintBitsToFloat(floatBufferData.xyz);
+    // ModelForge: View → Wind sways vegetation (a wind code has bit 15 set).
+    if (mfWind.x > 0.5 && (mfCode & 32768u) != 0u)
+      center += mfWindOffset(center, mfCode, sortedIndex);
     vec4 c_cam = T_camera_group * vec4(center, 1);
     if (-c_cam.z < near || -c_cam.z > far)
       return;
@@ -148,6 +162,15 @@ const GaussianSplatMaterial = /* @__PURE__ */ shaderMaterial(
       float(rgbaUint32 >> uint(24)) / 255.0
     );
 
+    // ModelForge: the SH bands for the direction from the camera, then Edit → Lights → Preview's light, then the
+    // glowing windows (a glow code has bit 15 clear).
+    if (mfDeg > 0)
+      vRgba.rgb = clamp(vRgba.rgb + mfSh(sortedIndex, normalize(transpose(mat3(T_camera_group)) * c_cam.xyz)), 0.0, 1.0);
+    if (mfLit > 0)
+      vRgba.rgb = mfRelight(vRgba.rgb, center, cov3d, T_camera_group);
+    if (mfGlowA.x > 0.5 && mfCode > 0u && (mfCode & 32768u) == 0u)
+      vRgba.rgb = mfGlowAdd(vRgba.rgb, mfCode);
+
     // Throw the Gaussian off the screen if it's too close, too far, or too small.
     float weightedDeterminant = vRgba.a * (diag1 * diag2 - offDiag * offDiag);
     if (weightedDeterminant < 0.25)
@@ -192,6 +215,7 @@ export function createGaussianMeshProps(
   gaussianBuffer: Uint32Array,
   numGroups: number,
   maxTextureSize: number,
+  sh: MergedSh | null = null,
 ) {
   const numGaussians = gaussianBuffer.length / 8;
 
@@ -248,6 +272,8 @@ export function createGaussianMeshProps(
   material.textureBuffer = textureBuffer;
   material.textureT_camera_groups = textureT_camera_groups;
   material.numGaussians = numGaussians;
+  // ModelForge: the SH texture and the lighting uniforms.
+  mfSplatMaterial(material, sh, numGaussians, maxTextureSize);
 
   return {
     geometry,
