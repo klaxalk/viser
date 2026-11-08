@@ -35,7 +35,8 @@ export const SingleGlbAsset = React.forwardRef<
         obj.receiveShadow = message.props.receive_shadow === true;
         // ModelForge: unlit materials (KHR_materials_unlit) without tone mapping, at Edit → Lights → Preview's
         // brightness (src/mf/lights.ts; View → Surroundings).
-        if (obj.material instanceof THREE.MeshBasicMaterial) mfUnlitMaterial(obj.material);
+        if (obj.material instanceof THREE.MeshBasicMaterial)
+          mfUnlitMaterial(obj.material);
       }
     });
   }, [gltf, message.props.cast_shadow, message.props.receive_shadow]);

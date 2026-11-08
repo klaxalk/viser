@@ -89,7 +89,8 @@ function lamp(k: number): string {
 
 const taps3x3 = (f: (dx: number, dy: number) => string) => {
   let s = "";
-  for (const dy of [-1, 0, 1]) for (const dx of [-1, 0, 1]) s += "\n  " + f(dx, dy);
+  for (const dy of [-1, 0, 1])
+    for (const dx of [-1, 0, 1]) s += "\n  " + f(dx, dy);
   return s;
 };
 

@@ -17,7 +17,13 @@ import type * as THREE from "three";
 import { mfEl, mfControls } from "./el";
 import { mfSendValue } from "./viewer";
 
-type Path = { id: number; t: number[]; p: number[]; q: number[]; m: Float64Array };
+type Path = {
+  id: number;
+  t: number[];
+  p: number[];
+  q: number[];
+  m: Float64Array;
+};
 type Clock = {
   path: number;
   t0: number;
@@ -44,12 +50,20 @@ const now = () => performance.now();
 const mark = () => {
   touched = now();
 };
-const on3d = (e: Event) => (e.target as HTMLElement | null)?.tagName === "CANVAS";
+const on3d = (e: Event) =>
+  (e.target as HTMLElement | null)?.tagName === "CANVAS";
 
 export function startFly() {
   addEventListener("pointerdown", (e) => on3d(e) && mark(), true);
-  addEventListener("pointermove", (e) => (e as PointerEvent).buttons && on3d(e) && mark(), true);
-  addEventListener("wheel", (e) => on3d(e) && mark(), { capture: true, passive: true });
+  addEventListener(
+    "pointermove",
+    (e) => (e as PointerEvent).buttons && on3d(e) && mark(),
+    true,
+  );
+  addEventListener("wheel", (e) => on3d(e) && mark(), {
+    capture: true,
+    passive: true,
+  });
 }
 
 function readPath(): Path | null {
@@ -67,7 +81,8 @@ function readPath(): Path | null {
       for (let k = 0; k < n; k++) {
         const a = k > 0 ? k - 1 : 0;
         const b = k < n - 1 ? k + 1 : n - 1;
-        for (let j = 0; j < 3; j++) m[3 * k + j] = (p[3 * b + j] - p[3 * a + j]) / (t[b] - t[a]);
+        for (let j = 0; j < 3; j++)
+          m[3 * k + j] = (p[3 * b + j] - p[3 * a + j]) / (t[b] - t[a]);
       }
       path = { id: d.id, t, p, q: d.q, m };
     }
@@ -99,7 +114,11 @@ function pose(P: Path, t: number): [number[], number[], number[]] {
   const m = P.m;
   const x = [0, 0, 0];
   for (let j = 0; j < 3; j++)
-    x[j] = a * p[3 * k + j] + b * h * m[3 * k + j] + c * p[3 * k + 3 + j] + d * h * m[3 * k + 3 + j];
+    x[j] =
+      a * p[3 * k + j] +
+      b * h * m[3 * k + j] +
+      c * p[3 * k + 3 + j] +
+      d * h * m[3 * k + 3 + j];
   const q0 = P.q.slice(4 * k, 4 * k + 4);
   let q1 = P.q.slice(4 * k + 4, 4 * k + 8);
   let dt = q0[0] * q1[0] + q0[1] * q1[1] + q0[2] * q1[2] + q0[3] * q1[3];
@@ -112,7 +131,9 @@ function pose(P: Path, t: number): [number[], number[], number[]] {
   else {
     const th = Math.acos(dt);
     const s = Math.sin(th);
-    q = q0.map((v, i) => (Math.sin((1 - u) * th) * v + Math.sin(u * th) * q1[i]) / s);
+    q = q0.map(
+      (v, i) => (Math.sin((1 - u) * th) * v + Math.sin(u * th) * q1[i]) / s,
+    );
   }
   const l = Math.hypot(...q);
   const w = q[0] / l;
@@ -189,7 +210,11 @@ export function mfFly(
     M[2] * v[0] + M[6] * v[1] + M[10] * v[2],
   ];
   const p = pt(x);
-  const g = pt([x[0] + f[0] * C.dist, x[1] + f[1] * C.dist, x[2] + f[2] * C.dist]);
+  const g = pt([
+    x[0] + f[0] * C.dist,
+    x[1] + f[1] * C.dist,
+    x[2] + f[2] * C.dist,
+  ]);
   const u = dir(up);
   controls.camera.up.set(u[0], u[1], u[2]).normalize();
   controls.updateCameraUp();

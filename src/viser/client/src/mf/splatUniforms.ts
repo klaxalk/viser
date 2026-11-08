@@ -16,10 +16,20 @@ function setUniform(m: THREE.ShaderMaterial, k: string, v: unknown) {
 
 /** An RGBA32UI texture of w x h texels (a 1 x 1 dummy without data: an integer sampler must be bound to an integer
  * texture), disposed with the material. */
-function uintTexture(data: Uint32Array | null, w: number, h: number): THREE.DataTexture {
+function uintTexture(
+  data: Uint32Array | null,
+  w: number,
+  h: number,
+): THREE.DataTexture {
   const D = new Uint32Array(w * h * 4);
   if (data) D.set(data.subarray(0, Math.min(data.length, D.length)));
-  const t = new THREE.DataTexture(D, w, h, THREE.RGBAIntegerFormat, THREE.UnsignedIntType);
+  const t = new THREE.DataTexture(
+    D,
+    w,
+    h,
+    THREE.RGBAIntegerFormat,
+    THREE.UnsignedIntType,
+  );
   t.internalFormat = "RGBA32UI";
   t.needsUpdate = true;
   return t;
@@ -31,7 +41,9 @@ function setTexture(m: THREE.ShaderMaterial, k: string, t: THREE.DataTexture) {
   if (m.uniforms[k]) m.uniforms[k].value = t;
   else {
     m.uniforms[k] = { value: t };
-    m.addEventListener("dispose", () => (m.uniforms[k].value as THREE.DataTexture).dispose());
+    m.addEventListener("dispose", () =>
+      (m.uniforms[k].value as THREE.DataTexture).dispose(),
+    );
   }
 }
 
@@ -62,11 +74,20 @@ export function mfShTexture(
 }
 
 /** A shadow map's texture, replaced only when the map changed (its id). */
-function shadowTexture(m: THREE.ShaderMaterial, k: string, s: ShadowMap | null) {
-  const t = m.uniforms[k]?.value as (THREE.DataTexture & { mfId?: number }) | undefined;
+function shadowTexture(
+  m: THREE.ShaderMaterial,
+  k: string,
+  s: ShadowMap | null,
+) {
+  const t = m.uniforms[k]?.value as
+    (THREE.DataTexture & { mfId?: number }) | undefined;
   const id = s ? s.id : 0;
   if (t && t.mfId === id) return;
-  const X = uintTexture(s ? s.data : null, s ? s.w : 1, s ? s.h : 1) as THREE.DataTexture & { mfId?: number };
+  const X = uintTexture(
+    s ? s.data : null,
+    s ? s.w : 1,
+    s ? s.h : 1,
+  ) as THREE.DataTexture & { mfId?: number };
   X.mfId = id;
   setTexture(m, k, X);
 }
@@ -80,12 +101,20 @@ export function mfLitApply(m: THREE.ShaderMaterial) {
   const lamps = new Float32Array(16 * MAX_LAMPS);
   if (on && d!.lamps) lamps.set(d!.lamps.slice(0, 16 * MAX_LAMPS));
   setUniform(m, "mfLit", on ? 1 : 0);
-  setUniform(m, "mfLitA", on ? [d!.day, d!.ref, d!.n, s && d!.shadows ? 1 : 0] : [0, 0, 0, 0]);
+  setUniform(
+    m,
+    "mfLitA",
+    on ? [d!.day, d!.ref, d!.n, s && d!.shadows ? 1 : 0] : [0, 0, 0, 0],
+  );
   setUniform(m, "mfSun", on && d!.sun ? d!.sun : [0, 0, 1, 0]);
   setUniform(m, "mfLamps", lamps);
   shadowTexture(m, "mfShadowTex", s);
   shadowTexture(m, "mfLampShTex", q);
-  setUniform(m, "mfLsP", on && q && d!.lsid === q.id ? [q.res, q.n || 0, 0, 0] : [1, 0, 0, 0]);
+  setUniform(
+    m,
+    "mfLsP",
+    on && q && d!.lsid === q.id ? [q.res, q.n || 0, 0, 0] : [1, 0, 0, 0],
+  );
   setUniform(m, "mfLitB", [on && d!.nw != null ? d!.nw : 1, 0, 0, 0]);
   const G = d && d.glow;
   setUniform(m, "mfGlowA", G ? [1, G[0], 0, 0] : [0, 0, 0, 0]);
@@ -93,8 +122,16 @@ export function mfLitApply(m: THREE.ShaderMaterial) {
   setUniform(m, "mfGlowC2", G ? [G[4], G[5], G[6], 0] : [0, 0, 0, 0]);
   const W = litState.wind;
   const wo = !!(W && W.on);
-  setUniform(m, "mfWind", wo ? [1, W!.strength, W!.freq, W!.gust] : [0, 0, 0, 0]);
-  setUniform(m, "mfWindB", wo ? [W!.dx, W!.dy, W!.flutter, litState.windTime] : [1, 0, 0, 0]);
+  setUniform(
+    m,
+    "mfWind",
+    wo ? [1, W!.strength, W!.freq, W!.gust] : [0, 0, 0, 0],
+  );
+  setUniform(
+    m,
+    "mfWindB",
+    wo ? [W!.dx, W!.dy, W!.flutter, litState.windTime] : [1, 0, 0, 0],
+  );
   setUniform(m, "mfWindS", wo ? [W!.grass, W!.bush, W!.tree, 0] : [0, 0, 0, 0]);
   setUniform(m, "mfShU", s ? s.u : [1, 0, 0, 0]);
   setUniform(m, "mfShV", s ? s.v : [0, 1, 0, 0]);

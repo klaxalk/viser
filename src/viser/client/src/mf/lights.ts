@@ -41,7 +41,11 @@ export function applyLights() {
 
 const shownIds: { [el: string]: string } = {};
 
-function readShadow(el: string, key: "sunShadow" | "lampShadow", label: string) {
+function readShadow(
+  el: string,
+  key: "sunShadow" | "lampShadow",
+  label: string,
+) {
   const s = mfEl(el);
   if (!s) return;
   const id = s.dataset.id || "";
@@ -54,7 +58,9 @@ function readShadow(el: string, key: "sunShadow" | "lampShadow", label: string) 
   }
   const meta = JSON.parse(s.dataset.meta!);
   const b = Uint8Array.from(atob(s.dataset.map), (c) => c.charCodeAt(0));
-  new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream("deflate")))
+  new Response(
+    new Blob([b]).stream().pipeThrough(new DecompressionStream("deflate")),
+  )
     .arrayBuffer()
     .then((buf) => {
       if (shownIds[el] !== id) return;
@@ -62,8 +68,17 @@ function readShadow(el: string, key: "sunShadow" | "lampShadow", label: string) 
       d.set(new Uint32Array(buf).subarray(0, d.length));
       litState[key] = { ...meta, id: +id, data: d } as ShadowMap;
       mfDiag(
-        label + " " + meta.res + "x" + meta.res + (meta.n ? " x " + meta.n + " lamps" : "") +
-          " (" + meta.w + "x" + meta.h + " texels)",
+        label +
+          " " +
+          meta.res +
+          "x" +
+          meta.res +
+          (meta.n ? " x " + meta.n + " lamps" : "") +
+          " (" +
+          meta.w +
+          "x" +
+          meta.h +
+          " texels)",
       );
       applyLights();
     })

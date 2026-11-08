@@ -24,7 +24,9 @@ export type MergedSplats = {
 
 export const SH_TAG = 0x4d46;
 
-export function mergeSplats(groupBufferFromName: { [name: string]: Uint32Array }): MergedSplats {
+export function mergeSplats(groupBufferFromName: {
+  [name: string]: Uint32Array;
+}): MergedSplats {
   const buffers = Object.values(groupBufferFromName);
   let n = 0;
   let texels = 0;
@@ -53,11 +55,15 @@ export function mergeSplats(groupBufferFromName: { [name: string]: Uint32Array }
   parts.forEach(([b, g, K], t) => {
     groupIndices.fill(t, a, a + g);
     r.set(b.subarray(0, g * 8), a * 8);
-    for (let k = 0; k < g; k++) r[(a + k) * 8 + 3] = (t | (k === 0 ? 0 : b[k * 8 + 3] & 0xffff0000)) >>> 0;
+    for (let k = 0; k < g; k++)
+      r[(a + k) * 8 + 3] =
+        (t | (k === 0 ? 0 : b[k * 8 + 3] & 0xffff0000)) >>> 0;
     if (K) {
       const s = b.subarray(g * 8);
       if (K === 4 * texels) sh!.set(s, a * 4 * texels);
-      else for (let k = 0; k < g; k++) sh!.set(s.subarray(k * K, k * K + K), (a + k) * 4 * texels);
+      else
+        for (let k = 0; k < g; k++)
+          sh!.set(s.subarray(k * K, k * K + K), (a + k) * 4 * texels);
     }
     a += g;
   });

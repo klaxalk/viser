@@ -38,5 +38,9 @@ export function mfSend(message: Message): boolean {
 
 /** A value for the hidden text input `uuid` (the server's on_update gets it): the page-to-server channel. */
 export function mfSendValue(uuid: string, value: string): boolean {
-  return mfSend({ type: "GuiUpdateMessage", uuid, updates: { value } } as Message);
+  return mfSend({
+    type: "GuiUpdateMessage",
+    uuid,
+    updates: { value },
+  } as Message);
 }

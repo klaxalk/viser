@@ -29,7 +29,9 @@ function draw() {
   const h = overlay.height;
   c.clearRect(0, 0, w, h);
   c.beginPath();
-  loop.forEach((q, i) => (i ? c.lineTo(q[0] * w, q[1] * h) : c.moveTo(q[0] * w, q[1] * h)));
+  loop.forEach((q, i) =>
+    i ? c.lineTo(q[0] * w, q[1] * h) : c.moveTo(q[0] * w, q[1] * h),
+  );
   c.closePath();
   const col = subtract ? "255,200,0" : "230,0,230";
   c.fillStyle = "rgba(" + col + ",0.15)";
@@ -42,7 +44,16 @@ function draw() {
 
 function down(e: PointerEvent) {
   const m = mfMutable();
-  if (!uuid() || !m || !m.canvas || e.target !== m.canvas || e.button !== 0 || e.ctrlKey || e.metaKey) return;
+  if (
+    !uuid() ||
+    !m ||
+    !m.canvas ||
+    e.target !== m.canvas ||
+    e.button !== 0 ||
+    e.ctrlKey ||
+    e.metaKey
+  )
+    return;
   canvas = m.canvas;
   const r = canvas.getBoundingClientRect();
   loop = [at(e, r)];
@@ -117,7 +128,8 @@ export function startLasso() {
     "click",
     (e) => {
       const m = mfMutable();
-      if (uuid() && m && e.target === m.canvas && !e.ctrlKey && !e.metaKey) stop(e);
+      if (uuid() && m && e.target === m.canvas && !e.ctrlKey && !e.metaKey)
+        stop(e);
     },
     true,
   );

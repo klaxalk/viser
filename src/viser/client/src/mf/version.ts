@@ -17,7 +17,8 @@ export function startVersionBar() {
         bar.style.cssText =
           "position:fixed;top:0;left:0;right:0;z-index:100000;background:#d9480f;color:#fff;" +
           "font:600 15px sans-serif;padding:8px 14px;text-align:center;cursor:pointer";
-        bar.textContent = "ModelForge was updated: this page is out of date. Click here or press Ctrl + Shift + R to reload it.";
+        bar.textContent =
+          "ModelForge was updated: this page is out of date. Click here or press Ctrl + Shift + R to reload it.";
         bar.onclick = () => location.reload();
         document.body.appendChild(bar);
       }

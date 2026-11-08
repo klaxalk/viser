@@ -14,7 +14,11 @@ import { mfDiagSend } from "./diag";
 import { mfControls } from "./el";
 import { mfSendValue } from "./viewer";
 
-const BADGES: { [state: string]: string } = { idle: "", running: "#2ecc71", failed: "#ff4d4f" };
+const BADGES: { [state: string]: string } = {
+  idle: "",
+  running: "#2ecc71",
+  failed: "#ff4d4f",
+};
 
 function icon(colour: string): string {
   let svg = faviconSvg;
@@ -23,7 +27,9 @@ function icon(colour: string): string {
       "</svg>",
       `<circle cx="50" cy="50" r="11" fill="${colour}" stroke="#17212d" stroke-width="4"/></svg>`,
     );
-  return "data:image/svg+xml," + encodeURIComponent(svg.replace(/\s+/g, " ").trim());
+  return (
+    "data:image/svg+xml," + encodeURIComponent(svg.replace(/\s+/g, " ").trim())
+  );
 }
 
 const ICONS: { [state: string]: string } = Object.fromEntries(
@@ -68,15 +74,26 @@ function follow() {
       (document.hidden || !document.hasFocus())
     ) {
       try {
-        new Notification("ModelForge", { body: n.slice(k + 1), icon: ICONS.idle });
+        new Notification("ModelForge", {
+          body: n.slice(k + 1),
+          icon: ICONS.idle,
+        });
       } catch {
         /* some browsers refuse page notifications */
       }
     }
   }
-  const p = !window.isSecureContext ? "insecure" : !window.Notification ? "unsupported" : Notification.permission;
+  const p = !window.isSecureContext
+    ? "insecure"
+    : !window.Notification
+      ? "unsupported"
+      : Notification.permission;
   const u = mfControls()?.diag;
-  if (u && (p !== reportedPermission || u !== reportedTo) && mfDiagSend("0 notifications: " + p)) {
+  if (
+    u &&
+    (p !== reportedPermission || u !== reportedTo) &&
+    mfDiagSend("0 notifications: " + p)
+  ) {
     reportedPermission = p;
     reportedTo = u;
   }
@@ -98,7 +115,11 @@ export function startPage() {
   document.title = "ModelForge";
   iconLink().href = ICONS.idle;
   document.addEventListener("click", () => {
-    if (window.isSecureContext && window.Notification && Notification.permission === "default")
+    if (
+      window.isSecureContext &&
+      window.Notification &&
+      Notification.permission === "default"
+    )
       Notification.requestPermission().then(follow);
   });
   new MutationObserver(follow).observe(document.documentElement, {
@@ -117,7 +138,11 @@ export function startPage() {
       if (!r.width) return;
       mfSendValue(
         t.dataset.mfClick!,
-        ((e.clientX - r.left) / r.width).toFixed(6) + "," + ((e.clientY - r.top) / r.height).toFixed(6) + "," + Date.now(),
+        ((e.clientX - r.left) / r.width).toFixed(6) +
+          "," +
+          ((e.clientY - r.top) / r.height).toFixed(6) +
+          "," +
+          Date.now(),
       );
     },
     true,

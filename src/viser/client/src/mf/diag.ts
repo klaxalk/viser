@@ -35,7 +35,9 @@ function poll() {
       const x = gl.getExtension("WEBGL_debug_renderer_info");
       mfDiag(
         "gpu " +
-          (x ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) +
+          (x
+            ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL)
+            : gl.getParameter(gl.RENDERER)) +
           " | max texture " +
           gl.getParameter(gl.MAX_TEXTURE_SIZE) +
           " | vertex texture units " +
@@ -47,12 +49,19 @@ function poll() {
         lost++;
         mfDiag("WebGL context lost (" + lost + ")");
       });
-      c.addEventListener("webglcontextrestored", () => mfDiag("WebGL context restored"));
+      c.addEventListener("webglcontextrestored", () =>
+        mfDiag("WebGL context restored"),
+      );
     }
   }
   if (gl) {
     const e = gl.getError();
-    if (e) mfDiag("GL error 0x" + e.toString(16) + (diagState.shInfo ? " (sh " + diagState.shInfo + ")" : ""));
+    if (e)
+      mfDiag(
+        "GL error 0x" +
+          e.toString(16) +
+          (diagState.shInfo ? " (sh " + diagState.shInfo + ")" : ""),
+      );
   }
 }
 
@@ -72,15 +81,24 @@ export function startDiag() {
       f(...a);
       try {
         const s = a.map(String).join(" ");
-        if (/THREE|WebGL|shader|GL_|context|program/i.test(s) && !/computeBoundingSphere|reversed depth|Clock/.test(s))
+        if (
+          /THREE|WebGL|shader|GL_|context|program/i.test(s) &&
+          !/computeBoundingSphere|reversed depth|Clock/.test(s)
+        )
           mfDiag(k + ": " + s);
       } catch {
         /* never let a diagnostic break the page */
       }
     };
   }
-  addEventListener("error", (e) => mfDiag("page error: " + e.message + " (" + e.filename + ":" + e.lineno + ")"));
-  addEventListener("unhandledrejection", (e) => mfDiag("page error (promise): " + e.reason));
+  addEventListener("error", (e) =>
+    mfDiag(
+      "page error: " + e.message + " (" + e.filename + ":" + e.lineno + ")",
+    ),
+  );
+  addEventListener("unhandledrejection", (e) =>
+    mfDiag("page error (promise): " + e.reason),
+  );
   setInterval(poll, 1000);
   setInterval(flush, 250);
 }
