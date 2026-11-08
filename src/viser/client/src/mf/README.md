@@ -1,7 +1,7 @@
 # ModelForge's additions to viser's client
 
-`third_party/viser` is viser 1.1.1 (github.com/nerfstudio-project/viser, tag v1.1.1, MIT) with ModelForge's browser
-features built in. They used to be search-and-replace patches on viser's minified bundle (`docker/patch_viser_camera.py`,
+This branch (`modelforge` of github.com/klaxalk/viser, ModelForge's submodule `third_party/viser`) is viser 1.1.1
+(github.com/nerfstudio-project/viser, tag v1.1.1, MIT) with ModelForge's browser features built in. They used to be search-and-replace patches on viser's minified bundle (`docker/patch_viser_camera.py`,
 `docker/patch_viser_page.py`, removed 2026-11-08). The plan and what is left: `docs/todo_viser_fork.md`.
 
 Build: `scripts/install_viser_fork` (or the image's `viser-client` stage). Node ≥ 24.
@@ -40,4 +40,6 @@ Build: `scripts/install_viser_fork` (or the image's `viser-client` stage). Node 
 | `src/Splatting/GaussianSplatsHelpers.ts` | our shader chunks and uniforms; the group index in the reserved word's lower half |
 | `src/mesh/SingleGlbAsset.tsx`            | unlit materials via `mfUnlitMaterial`                                             |
 
-To merge a newer viser: diff upstream's v1.1.1 → new tag, apply it here, keep the hooks above.
+To move to a newer viser: rebase this branch onto the new upstream tag, keep the hooks above. Before committing client
+code, viser's gates (its CLAUDE.md): `npx tsc --noEmit`, `npx eslint src/`, `npx prettier --check src/`,
+`npx vitest run src`.
