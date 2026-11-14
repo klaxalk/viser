@@ -277,6 +277,18 @@ highp vec3 mfWindOffset(highp vec3 p, uint code, uint gid) {
 }
 `;
 
+/** View → Surroundings → Haze with distance (haze.ts, modelforge/haze.py): the Gaussian's colour (sRGB as trained) to
+ * linear, blended towards the airlight mfHazeC by T = exp(-mfHazeK.xyz d) per channel, d its distance from the
+ * camera, back to sRGB. */
+const HAZE = `
+highp vec3 mfHaze(highp vec3 c, highp float d) {
+  highp vec3 lin = mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+  highp vec3 t = exp(-mfHazeK.xyz * d);
+  lin = lin * t + mfHazeC.rgb * (1.0 - t);
+  return mix(lin * 12.92, 1.055 * pow(lin, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, lin));
+}
+`;
+
 /** Uniform declarations (values set by splatUniforms.ts). */
 export const MF_UNIFORMS = `
   uniform usampler2D mfShTex;
@@ -299,7 +311,9 @@ export const MF_UNIFORMS = `
   uniform highp vec4 mfWind;
   uniform highp vec4 mfWindB;
   uniform highp vec4 mfWindS;
+  uniform highp vec4 mfHazeK;
+  uniform highp vec4 mfHazeC;
 `;
 
 /** Functions, before main(). */
-export const MF_FUNCTIONS = SH + LIT + GLOW + WIND;
+export const MF_FUNCTIONS = SH + LIT + GLOW + WIND + HAZE;

@@ -5,13 +5,15 @@
  * Unlit GLB materials (View → Surroundings, modelforge/surroundings.unlit_glb; drawn without tone mapping, as the
  * splat) get one brightness for flat ground lit as the splat is (relight.factor with the normal up: daylight + sun
  * strength x its elevation term; lamps and shadows light only the splat), 1 while the preview is off: their colour
- * multiplies the texture in linear light. */
-import type * as THREE from "three";
+ * multiplies the texture in linear light. They also take View → Surroundings → Haze with distance (haze.ts): the
+ * fragment's colour blended towards the airlight by its distance from the camera (shared uniforms). */
+import * as THREE from "three";
 import { mfEl } from "./el";
 import { mfDiag } from "./diag";
 import { mfRequestRender } from "./viewer";
 import { litState, type ShadowMap } from "./lightState";
 import { applyAllSplatMaterials } from "./splatUniforms";
+import { hazeUniforms } from "./haze";
 
 const unlitMaterials = new Set<THREE.MeshBasicMaterial>();
 
@@ -22,18 +24,54 @@ function unlitBrightness(): number {
   return Math.min(16, d.day + (s ? s[3] * Math.max(0, s[2]) : 0));
 }
 
-/** A GLB's MeshBasicMaterial (KHR_materials_unlit): no tone mapping, the preview's brightness (SingleGlbAsset.tsx). */
+const hazeK = { value: new THREE.Vector4(0, 0, 0, 0) };
+const hazeC = { value: new THREE.Vector4(0, 0, 0, 0) };
+
+function setHaze() {
+  const [k, c] = hazeUniforms();
+  hazeK.value.fromArray(k);
+  hazeC.value.fromArray(c);
+}
+
+/** The haze in MeshBasicMaterial's shader: the view-space distance per vertex, the blend before the output. */
+function hazeShader(s: THREE.WebGLProgramParametersWithUniforms) {
+  s.uniforms.mfHazeK = hazeK;
+  s.uniforms.mfHazeC = hazeC;
+  s.vertexShader = s.vertexShader
+    .replace("void main() {", "varying float vMfDist;\nvoid main() {")
+    .replace(
+      "#include <project_vertex>",
+      "#include <project_vertex>\n  vMfDist = length(mvPosition.xyz);",
+    );
+  s.fragmentShader = s.fragmentShader
+    .replace(
+      "void main() {",
+      "uniform vec4 mfHazeK;\nuniform vec4 mfHazeC;\nvarying float vMfDist;\nvoid main() {",
+    )
+    .replace(
+      "#include <opaque_fragment>",
+      "if (mfHazeK.w > 0.5) { vec3 mfT = exp(-mfHazeK.xyz * vMfDist); " +
+        "outgoingLight = outgoingLight * mfT + mfHazeC.rgb * (1.0 - mfT); }\n#include <opaque_fragment>",
+    );
+}
+
+/** A GLB's MeshBasicMaterial (KHR_materials_unlit): no tone mapping, the preview's brightness and the haze
+ * (SingleGlbAsset.tsx). */
 export function mfUnlitMaterial(m: THREE.MeshBasicMaterial) {
   m.toneMapped = false;
   if (!unlitMaterials.has(m)) {
     unlitMaterials.add(m);
     m.addEventListener("dispose", () => unlitMaterials.delete(m));
+    m.onBeforeCompile = hazeShader;
+    m.customProgramCacheKey = () => "mfHaze";
+    m.needsUpdate = true;
   }
   m.color.setScalar(unlitBrightness());
 }
 
 export function applyLights() {
   applyAllSplatMaterials();
+  setHaze();
   const k = unlitBrightness();
   for (const m of unlitMaterials) m.color.setScalar(k);
   mfRequestRender();

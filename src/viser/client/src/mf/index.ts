@@ -4,6 +4,7 @@
  * (viewer.ts mfSendValue). Inside viser's own files, the hooks are marked "ModelForge" (see README.md). */
 import { startDiag } from "./diag";
 import { startFly } from "./fly";
+import { startHaze } from "./haze";
 import { startLasso } from "./lasso";
 import { startLights } from "./lights";
 import { startPage } from "./page";
@@ -17,5 +18,6 @@ startDiag();
 startFly();
 startLights();
 startWind();
+startHaze();
 startLasso();
 startVersionBar();

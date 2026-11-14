@@ -6,6 +6,7 @@ import type { MergedSh } from "./splatMerge";
 import { MAX_LAMPS } from "./splatShaders";
 import { diagState, mfDiag } from "./diag";
 import { litState, type ShadowMap } from "./lightState";
+import { hazeUniforms } from "./haze";
 
 const materials = new Set<THREE.ShaderMaterial>();
 
@@ -133,6 +134,9 @@ export function mfLitApply(m: THREE.ShaderMaterial) {
     wo ? [W!.dx, W!.dy, W!.flutter, litState.windTime] : [1, 0, 0, 0],
   );
   setUniform(m, "mfWindS", wo ? [W!.grass, W!.bush, W!.tree, 0] : [0, 0, 0, 0]);
+  const [hk, hc] = hazeUniforms();
+  setUniform(m, "mfHazeK", hk);
+  setUniform(m, "mfHazeC", hc);
   setUniform(m, "mfShU", s ? s.u : [1, 0, 0, 0]);
   setUniform(m, "mfShV", s ? s.v : [0, 1, 0, 0]);
   setUniform(m, "mfShP", s ? s.p : [1, 1, 0, 1]);

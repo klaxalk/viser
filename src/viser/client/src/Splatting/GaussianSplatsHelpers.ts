@@ -170,6 +170,8 @@ const GaussianSplatMaterial = /* @__PURE__ */ shaderMaterial(
       vRgba.rgb = mfRelight(vRgba.rgb, center, cov3d, T_camera_group);
     if (mfGlowA.x > 0.5 && mfCode > 0u && (mfCode & 32768u) == 0u)
       vRgba.rgb = mfGlowAdd(vRgba.rgb, mfCode);
+    if (mfHazeK.w > 0.5)
+      vRgba.rgb = mfHaze(vRgba.rgb, length(c_cam.xyz));
 
     // Throw the Gaussian off the screen if it's too close, too far, or too small.
     float weightedDeterminant = vRgba.a * (diag1 * diag2 - offDiag * offDiag);

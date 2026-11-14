@@ -42,10 +42,25 @@ export type WindData = {
   tree: number;
 };
 
+/** #mf-haze data-haze (modelforge/haze.py `state`): extinction per channel (1 / m), the airlight (linear RGB). */
+export type HazeData = {
+  on: number;
+  k?: [number, number, number];
+  c?: [number, number, number];
+};
+
 export const litState: {
   light: LightData | null;
   sunShadow: ShadowMap | null;
   lampShadow: ShadowMap | null;
   wind: WindData | null;
   windTime: number;
-} = { light: null, sunShadow: null, lampShadow: null, wind: null, windTime: 0 };
+  haze: HazeData | null;
+} = {
+  light: null,
+  sunShadow: null,
+  lampShadow: null,
+  wind: null,
+  windTime: 0,
+  haze: null,
+};
