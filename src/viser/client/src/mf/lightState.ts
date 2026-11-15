@@ -8,6 +8,7 @@ export type LightData = {
   ref: number;
   n: number; // lamps
   sun?: [number, number, number, number] | null; // towards the sun, strength
+  sunc?: [number, number, number] | null; // the sunlight's linear colour (relight.sun_colour), white when missing
   lamps?: number[]; // 16 floats per lamp
   shadows?: number;
   lsid?: number; // the lamp shadow map the lamps' slots refer to

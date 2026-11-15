@@ -12,7 +12,11 @@ let hazeKey: string | null = null;
 /** [k_r, k_g, k_b, on] and [airlight r, g, b, 0] as the shaders take them. */
 export function hazeUniforms(): [number[], number[]] {
   const h = litState.haze;
-  if (!h || !h.on || !h.k || !h.c) return [[0, 0, 0, 0], [0, 0, 0, 0]];
+  if (!h || !h.on || !h.k || !h.c)
+    return [
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ];
   const d = litState.light;
   let b = 1;
   if (d && d.on) {

@@ -202,7 +202,7 @@ highp float mfLampVis(highp float slot, highp vec3 lp, highp float rad, highp ve
   return lit / 9.0;
 }
 // The light factor (relight.factor) applied to the colour: daylight, the sun (disc + sphere shading by the
-// Gaussian's flatness, optional shadow map), the lamps, against the capture light (cap1), in linear light.
+// Gaussian's flatness, optional shadow map, its colour mfSunC), the lamps, against the capture light (cap1), in linear light.
 vec3 mfRelight(vec3 rgb, highp vec3 p, highp mat3 C, highp mat4 T) {
   highp mat3 R = mat3(T);
   highp vec3 cam = -(transpose(R) * T[3].xyz);
@@ -217,7 +217,7 @@ vec3 mfRelight(vec3 rgb, highp vec3 p, highp mat3 C, highp mat4 T) {
     highp vec3 l = mfSun.xyz;
     highp float shade = (1.0 - w) * (1.0 + dot(v, l)) / 3.0 + w * clamp(dot(n, l), 0.0, 1.0);
     if (mfLitA.w > 0.5) shade *= mfSunVis(p, n, C, l);
-    f += vec3(mfSun.w * shade / cap1);
+    f += mfSunC.rgb * (mfSun.w * shade / cap1);
   }
   highp vec3 lamps = vec3(0.0);${Array.from({ length: MAX_LAMPS }, (_, k) => lamp(k)).join("")}
   f += lamps / (max(mfLitA.y, 1e-6) * cap1);
@@ -298,6 +298,7 @@ export const MF_UNIFORMS = `
   uniform highp vec4 mfLitA;
   uniform highp vec4 mfLitB;
   uniform highp vec4 mfSun;
+  uniform highp vec4 mfSunC;
   uniform highp vec4 mfLamps[${4 * MAX_LAMPS}];
   uniform usampler2D mfShadowTex;
   uniform highp vec4 mfShU;

@@ -108,6 +108,8 @@ export function mfLitApply(m: THREE.ShaderMaterial) {
     on ? [d!.day, d!.ref, d!.n, s && d!.shadows ? 1 : 0] : [0, 0, 0, 0],
   );
   setUniform(m, "mfSun", on && d!.sun ? d!.sun : [0, 0, 1, 0]);
+  const sc = on && d!.sunc ? d!.sunc : [1, 1, 1];
+  setUniform(m, "mfSunC", [sc[0], sc[1], sc[2], 0]);
   setUniform(m, "mfLamps", lamps);
   shadowTexture(m, "mfShadowTex", s);
   shadowTexture(m, "mfLampShTex", q);

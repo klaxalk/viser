@@ -3,9 +3,9 @@
  * into litState, then every splat material's uniforms and a redraw.
  *
  * Unlit GLB materials (View → Surroundings, modelforge/surroundings.unlit_glb; drawn without tone mapping, as the
- * splat) get one brightness for flat ground lit as the splat is (relight.factor with the normal up: daylight + sun
- * strength x its elevation term; lamps and shadows light only the splat), 1 while the preview is off: their colour
- * multiplies the texture in linear light. They also take View → Surroundings → Haze with distance (haze.ts): the
+ * splat) get one colour for flat ground lit as the splat is (relight.factor with the normal up: daylight + sun
+ * strength x its elevation term x the sun's colour; lamps and shadows light only the splat), white while the preview
+ * is off: it multiplies the texture in linear light. They also take View → Surroundings → Haze with distance (haze.ts): the
  * fragment's colour blended towards the airlight by its distance from the camera (shared uniforms). */
 import * as THREE from "three";
 import { mfEl } from "./el";
@@ -17,11 +17,17 @@ import { hazeUniforms } from "./haze";
 
 const unlitMaterials = new Set<THREE.MeshBasicMaterial>();
 
-function unlitBrightness(): number {
+function unlitBrightness(): [number, number, number] {
   const d = litState.light;
-  if (!d || !d.on) return 1;
+  if (!d || !d.on) return [1, 1, 1];
   const s = d.sun;
-  return Math.min(16, d.day + (s ? s[3] * Math.max(0, s[2]) : 0));
+  const k = s ? s[3] * Math.max(0, s[2]) : 0;
+  const c = d.sunc || [1, 1, 1];
+  return [0, 1, 2].map((i) => Math.min(16, d.day + k * c[i])) as [
+    number,
+    number,
+    number,
+  ];
 }
 
 const hazeK = { value: new THREE.Vector4(0, 0, 0, 0) };
@@ -66,14 +72,14 @@ export function mfUnlitMaterial(m: THREE.MeshBasicMaterial) {
     m.customProgramCacheKey = () => "mfHaze";
     m.needsUpdate = true;
   }
-  m.color.setScalar(unlitBrightness());
+  m.color.fromArray(unlitBrightness());
 }
 
 export function applyLights() {
   applyAllSplatMaterials();
   setHaze();
   const k = unlitBrightness();
-  for (const m of unlitMaterials) m.color.setScalar(k);
+  for (const m of unlitMaterials) m.color.fromArray(k);
   mfRequestRender();
 }
 
