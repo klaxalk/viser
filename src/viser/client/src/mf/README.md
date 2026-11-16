@@ -23,6 +23,7 @@ Build: `scripts/install_viser_fork` (or the image's `viser-client` stage). Node 
 | `lightState.ts`, `lights.ts`, `wind.ts` | Edit → Lights → Preview and View → Wind state from the GUI; unlit GLB materials                                  |
 | `lasso.ts`                              | Edit → Floaters' lasso                                                                                           |
 | `haze.ts`                               | View → Surroundings → Haze with distance: state and uniforms (splat shader `HAZE`, unlit GLB materials)          |
+| `rain.ts`                               | View → Rain: falling streaks around the camera (vertex shader), clipped at the scene's top surface               |
 | `version.ts`                            | the "page out of date" bar (`__MF_PAGE_VERSION__`, `build/mf_version.txt` from `vite.config.mts`)                |
 | `favicon.svg`                           | our icon (a copy of `docker/favicon.svg`)                                                                        |
 
