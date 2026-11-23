@@ -719,6 +719,24 @@ export function SynchronizedCameraControls() {
     };
   }, []);
 
+  // ModelForge: View → Carry the pivot forward, in the browser (#mf-move-speed
+  // data-carry, metres; 0 = off): a dolly (wheel, pinch) that would come closer
+  // to the look-at point than that pushes the point ahead instead
+  // (camera-controls' infinityDolly with minDistance), so zooming in never
+  // stalls. It was the server's (App._carry_pivot), a round trip per camera
+  // update: on a phone a pinch stopped zooming (2026-11-23).
+  useFrame(() => {
+    const c = viewerMutable.cameraControl;
+    if (c === null) return;
+    const carry = +(mfControls()?.carry || 0);
+    // not near the far bound: there infinityDolly would push the camera out
+    // without end instead of stopping at maxDistance
+    const on = carry > 0 && c.distance < 0.5 * c.maxDistance;
+    if (c.infinityDolly !== on) c.infinityDolly = on;
+    const min = on ? Math.min(carry, 0.5 * c.maxDistance) : 0.01;
+    if (c.minDistance !== min) c.minDistance = min;
+  });
+
   // Apply held-key camera movement each frame. Rates: linear = ModelForge's
   // View → Move speed (#mf-move-speed data-speed, m/s; 5 until the page has
   // it; viser's fixed 2.0/s), rotation 50 deg/s (`delta` is in seconds).
