@@ -166,6 +166,13 @@ function SplatRendererImpl() {
   // is drawn, in its own order) until the worker's first sort of it arrives, then buffer and order go in together.
   const genRef = React.useRef(0); // the newest generation sent
   const shownGenRef = React.useRef(0); // the generation drawn
+  // ModelForge: the group names of the buffer drawn, in its group order. The
+  // frame loop maps transforms and visibility by these, not by the store's
+  // newest groups: a staged buffer (same group count) is drawn only once
+  // sorted, and meanwhile the newest names put the hide mask on the wrong
+  // groups of the old buffer (a hidden splat flickering in while the camera
+  // turned and level-of-detail cells came and went).
+  const shownNamesRef = React.useRef<string[]>([]);
   const pendingRef = React.useRef<{ gen: number; apply: () => void } | null>(
     null,
   );
@@ -218,6 +225,7 @@ function SplatRendererImpl() {
       maxTextureSize,
       merged.sh,
     );
+    shownNamesRef.current = Object.keys(groupBufferFromId);
 
     // Show splats immediately with identity sort order. This makes splats
     // visible before the WASM sorter finishes compiling + first sort, at the
@@ -271,11 +279,15 @@ function SplatRendererImpl() {
     // ModelForge: staged until sorted (see genRef).
     const gen = ++genRef.current;
     const staged = merged;
+    const stagedNames = Object.keys(groupBufferFromId);
     pendingRef.current = {
       gen,
       apply: () => {
         const props = meshPropsRef.current;
         if (props === null) return;
+        shownNamesRef.current = stagedNames;
+        // Re-mask (hidden groups by the new names) on the next frame.
+        prevRowMajorT_camera_groupsRef.current = new Float32Array(0);
         if (staged.numGaussians !== props.numGaussians) {
           meshPropsRef.current = createGaussianMeshProps(
             staged.gaussianBuffer,
@@ -325,6 +337,8 @@ function SplatRendererImpl() {
     genRef.current += 1;
     shownGenRef.current = genRef.current;
     pendingRef.current = null;
+    shownNamesRef.current = Object.keys(groupBufferFromId);
+    prevRowMajorT_camera_groupsRef.current = new Float32Array(0);
     if (sizeChanged) {
       // Size changed - need to recreate mesh props.
       const oldProps = meshPropsRef.current;
@@ -549,9 +563,7 @@ function SplatRendererImpl() {
       const T_camera_world = camera.matrixWorldInverse;
       const groupVisibles: boolean[] = [];
       let visibilitiesChanged = false;
-      for (const [groupIndex, name] of Object.keys(
-        groupBufferFromId,
-      ).entries()) {
+      for (const [groupIndex, name] of shownNamesRef.current.entries()) {
         const node = nodeRefFromId.current[name];
         // ModelForge: indexed by group, not pushed: a group whose node is not
         // mounted (yet / any more) used to be skipped without an entry, which
