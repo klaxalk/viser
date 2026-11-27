@@ -553,7 +553,19 @@ function SplatRendererImpl() {
         groupBufferFromId,
       ).entries()) {
         const node = nodeRefFromId.current[name];
-        if (node === undefined) continue;
+        // ModelForge: indexed by group, not pushed: a group whose node is not
+        // mounted (yet / any more) used to be skipped without an entry, which
+        // shifted the hide mask below onto the wrong groups (a hidden splat
+        // drawn, a shown one hidden, while level-of-detail cells came and
+        // went). Such a group is hidden.
+        if (node === undefined) {
+          groupVisibles[groupIndex] = false;
+          if (prevVisibles[groupIndex] !== false) {
+            prevVisibles[groupIndex] = false;
+            visibilitiesChanged = true;
+          }
+          continue;
+        }
         tmpT_camera_group.copy(T_camera_world).multiply(node.matrixWorld);
         const colMajorElements = tmpT_camera_group.elements;
         Tz_camera_groups.set(
@@ -579,7 +591,7 @@ function SplatRendererImpl() {
           : undefined;
         const visibleNow =
           node.parent !== null && (sceneNode?.effectiveVisibility ?? true);
-        groupVisibles.push(visibleNow);
+        groupVisibles[groupIndex] = visibleNow;
         if (prevVisibles[groupIndex] !== visibleNow) {
           prevVisibles[groupIndex] = visibleNow;
           visibilitiesChanged = true;
