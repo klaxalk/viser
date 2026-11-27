@@ -636,15 +636,21 @@ function SplatRendererImpl() {
           });
         }
       }
-      if (groupsMovedWrtCam || visibilitiesChanged) {
-        // If a group is not visible, throw it off the screen.
-        for (const [i, visible] of groupVisibles.entries()) {
-          if (!visible) {
-            meshProps.rowMajorT_camera_groups[i * 12 + 3] = 1e10;
-            meshProps.rowMajorT_camera_groups[i * 12 + 7] = 1e10;
-            meshProps.rowMajorT_camera_groups[i * 12 + 11] = 1e10;
-          }
+      // If a group is not visible, throw it off the screen. ModelForge: on
+      // every frame, not only when something changed: the transforms above
+      // are rewritten raw each frame into the array the texture is made from,
+      // so between changes it held hidden groups unmasked, and any re-upload
+      // (a texture disposed while its mesh is still drawn, which three.js
+      // re-initialises from that array) drew hidden splats: the Timeline
+      // tab's hidden world flickered in while the camera turned.
+      for (const [i, visible] of groupVisibles.entries()) {
+        if (!visible) {
+          meshProps.rowMajorT_camera_groups[i * 12 + 3] = 1e10;
+          meshProps.rowMajorT_camera_groups[i * 12 + 7] = 1e10;
+          meshProps.rowMajorT_camera_groups[i * 12 + 11] = 1e10;
         }
+      }
+      if (groupsMovedWrtCam || visibilitiesChanged) {
         meshProps.textureT_camera_groups.needsUpdate = true;
       }
 
