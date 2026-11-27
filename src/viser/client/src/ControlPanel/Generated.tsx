@@ -69,7 +69,9 @@ export function GuiComponentContextProvider({
 }) {
   const viewer = React.useContext(ViewerContext)!;
   const updateGuiProps = viewer.guiActions.updateGuiProps;
-  const messageSender = useThrottledMessageSender(50).send;
+  const sender = useThrottledMessageSender(50);
+  const messageSender = sender.send;
+  const flushMessages = sender.flush;
 
   // Stable identity: a fresh value object per render would re-render every
   // consumer (all generated inputs) whenever this provider renders.
@@ -78,6 +80,7 @@ export function GuiComponentContextProvider({
       folderDepth: 0,
       GuiContainer: GuiContainer,
       messageSender: messageSender,
+      flushMessages: flushMessages,
       setValue: (uuid: string, value: NonNullable<unknown>) => {
         updateGuiProps(uuid, { value: value });
         messageSender({
@@ -87,7 +90,7 @@ export function GuiComponentContextProvider({
         });
       },
     }),
-    [messageSender, updateGuiProps],
+    [messageSender, flushMessages, updateGuiProps],
   );
   return (
     <GuiComponentContext.Provider value={value}>

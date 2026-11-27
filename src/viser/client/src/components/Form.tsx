@@ -38,7 +38,15 @@ export default function FormComponent({
   const messageSender = guiContext.messageSender;
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    messageSender({ type: "GuiFormSubmitMessage", uuid });
+    // ModelForge: the throttled sender keeps one message: Enter within 50 ms
+    // of the last keystroke replaced its value update with the submit (the
+    // server saw the text before). The held-back update goes first, the
+    // submit unthrottled after it.
+    guiContext.flushMessages();
+    viewer.mutable.current.sendMessage?.({
+      type: "GuiFormSubmitMessage",
+      uuid,
+    });
   };
 
   const onChangeAny = () => {
